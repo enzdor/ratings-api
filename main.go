@@ -7,16 +7,17 @@ import (
     "github.com/gin-contrib/cors"
     "github.com/joho/godotenv"
     "github.com/enzdor/ratings-api/routers"
-    "github.com/enzdor/ratings-api/services"
+    "github.com/enzdor/ratings-api/utils/database"
     "log"
     "os"
     "fmt"
+    "time"
 )
 
 func main() {
     errEnv := godotenv.Load()
     if errEnv != nil {
-	log.Fatal(errEnv)
+		log.Fatal(errEnv)
     }
     dbUser := os.Getenv("DBUSER")
     dbPass := os.Getenv("DBPASS")
@@ -25,19 +26,26 @@ func main() {
 
     // Get a database handle.
     var err error
-    services.Db, err = gorm.Open(mysql.Open(cfg), &gorm.Config{})
+    database.Db, err = gorm.Open(mysql.Open(cfg), &gorm.Config{})
     if err != nil {
         log.Fatal(err)
     }
 
-    config := cors.DefaultConfig()
-    config.AllowOrigins = []string{"https://localhost:8080", "https://ratings-gray.vercel.app", "https://hoppscotch.io"}
 
     router := gin.Default()
     routers.RatingsRouter(router)
     routers.UsersRouter(router)
 
+    router.Use(cors.New(cors.Config{
+	AllowOrigins:	[]string{"http://localhost:3000"},
+	AllowMethods:	[]string{"POST", "GET", "PATCH", "PUT"},
+	AllowHeaders:	[]string{"Content-Type"},
+	ExposeHeaders:	[]string{"Content-Length"},
+	AllowCredentials: true,
+	AllowOriginFunc: func(origin string) bool {
+	    return origin == "http://localhost:3000"
+	},
+	MaxAge:		12 * time.Hour,
+    }))
     router.Run("localhost:8080")
 }
-
-

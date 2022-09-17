@@ -6,9 +6,9 @@ import (
     "time"
     "strconv"
     "github.com/golang-jwt/jwt"
-    "github.com/enzdor/ratings-api/models"
-    "github.com/enzdor/ratings-api/services"
-    "github.com/enzdor/ratings-api/utils"
+    "github.com/enzdor/ratings-api/utils/models"
+    "github.com/enzdor/ratings-api/utils/database"
+    "github.com/enzdor/ratings-api/utils/errors"
     "golang.org/x/crypto/bcrypt"
 )
 
@@ -17,8 +17,8 @@ func GetUserByID(c *gin.Context) {
     var user models.User
     id := c.Param("user_id")
 
-    if result := services.Db.First(&user, id); result.Error != nil {
-	err := utils.NewBadRequestError("not found in db")
+    if result := database.Db.First(&user, id); result.Error != nil {
+	err := errors.NewBadRequestError("not found in db")
 	c.JSON(err.Status, err)
 	return
     }
@@ -27,24 +27,30 @@ func GetUserByID(c *gin.Context) {
 }
 
 func PostUser(c *gin.Context) {
-    var user models.User
+    var user, checkUser models.User
 
     if err:= c.ShouldBindJSON(&user); err != nil {
-	err := utils.NewInternalServerError("invalid json body")
+	err := errors.NewInternalServerError("invalid json body")
+	c.JSON(err.Status, err)
+	return
+    }
+
+    if result := database.Db.Where("email = ?", user.Email).First(&checkUser); result.Error == nil {
+	err := errors.NewBadRequestError("user already exists")
 	c.JSON(err.Status, err)
 	return
     }
 
     newPassword, err := bcrypt.GenerateFromPassword([]byte(user.Password), 14)
     if err != nil {
-	err := utils.NewInternalServerError("could not encrypt password")
+	err := errors.NewInternalServerError("could not encrypt password")
 	c.JSON(err.Status, err)
 	return
     }
     user.Password = string(newPassword)
 
-    if result := services.Db.Create(&user); result.Error != nil {
-	err := utils.NewInternalServerError("unable to create user in db")
+    if result := database.Db.Create(&user); result.Error != nil {
+	err := errors.NewInternalServerError("unable to create user in db")
 	c.JSON(err.Status, err)
 	return
     }
@@ -54,23 +60,22 @@ func PostUser(c *gin.Context) {
 	Issuer: strconv.Itoa(user.User_id),
     })
 
-    token, err := claims.SignedString([]byte(services.SecretKey))
+    token, err := claims.SignedString([]byte(database.SecretKey))
     if err != nil {
-	err := utils.NewInternalServerError("unable to create token")
+	err := errors.NewInternalServerError("unable to create token")
 	c.JSON(err.Status, err)
 	return
     }
 
-    c.SetCookie("jwt", token, 100, "/", "localhost", false, true)
-    c.JSON(http.StatusOK, user)
+    c.JSON(http.StatusOK, token)
 }
 
 func DeleteUser(c *gin.Context) {
     var user  models.User
     id := c.Param("user_id")
 
-    if result := services.Db.Delete(&user, id); result.Error != nil {
-	err := utils.NewInternalServerError("unable to delete user")
+    if result := database.Db.Delete(&user, id); result.Error != nil {
+	err := errors.NewInternalServerError("unable to delete user")
 	c.JSON(err.Status, err)
 	return
     }
@@ -83,44 +88,43 @@ func LoginUser(c *gin.Context) {
     var dbUser models.User
 
     if err:= c.ShouldBindJSON(&reqUser); err != nil {
-	err := utils.NewInternalServerError("invalid json body")
+	err := errors.NewInternalServerError("invalid json body")
 	c.JSON(err.Status, err)
 	return
     }
-    if result := services.Db.Where("email = ?", reqUser.Email).First(&dbUser); result.Error != nil {
-	err := utils.NewInternalServerError("user not found in db")
+    if result := database.Db.Where("email = ?", reqUser.Email).First(&dbUser); result.Error != nil {
+	err := errors.NewInternalServerError("user not found in db")
 	c.JSON(err.Status, err)
 	return
     }
     if dbUser.User_id == 0 {
-	err := utils.NewInternalServerError("user not found in db")
+	err := errors.NewInternalServerError("user not found in db")
 	c.JSON(err.Status, err)
 	return
     }
 
     if err := bcrypt.CompareHashAndPassword([]byte(dbUser.Password), []byte(reqUser.Password)); err != nil {
-	err := utils.NewInternalServerError("incorrect password")
+	err := errors.NewInternalServerError("incorrect password")
 	c.JSON(err.Status, err)
 	return
     }
 
     claims := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.StandardClaims{
-	ExpiresAt: time.Now().Add(time.Hour).Unix(),
+	ExpiresAt: time.Now().Add(time.Hour * 72).Unix(),
 	Issuer: strconv.Itoa(dbUser.User_id),
     })
 
-    token, err := claims.SignedString([]byte(services.SecretKey))
+    token, err := claims.SignedString([]byte(database.SecretKey))
     if err != nil {
-	err := utils.NewInternalServerError("unable to create token")
+	err := errors.NewInternalServerError("unable to create token")
 	c.JSON(err.Status, err)
 	return
     }
 
-    c.SetCookie("jwt", token, 100, "/", "localhost", false, true)
     c.JSON(http.StatusOK, token)
 }
 
 func LogoutUser(c *gin.Context) {
-    c.SetCookie("jwt", "", -1, "", "", false, true)
+    c.SetCookie("jwt-token", "", -1, "", "", true, true)
     c.JSON(http.StatusOK, "logout succesful")
 }
