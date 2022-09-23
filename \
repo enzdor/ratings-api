@@ -11,26 +11,24 @@ import (
     "github.com/enzdor/ratings-api/utils/helpers"
 )
 
-func createSearchQuery(searchRating models.SearchRating) models.SearchQuery{
-    var searchQuery models.SearchQuery
+func createSearchQuery(searchRating models.SearchRating) (searchQuery models.SearchQuery) {
     searchQuery.Name = fmt.Sprintf("%s%s%s", "%", searchRating.Name, "%")
     searchQuery.Entry_type = fmt.Sprintf("%s%s%s", "%", searchRating.Entry_type, "%")
     searchQuery.User_id = searchRating.User_id
 
     if searchRating.Rating == -1 {
-	searchQuery.Rating = "%%"
+	searchQuery.Rating = ""
     } else {
 	searchQuery.Rating = strconv.Itoa(searchRating.Rating)
     }
 
     if searchRating.Consumed == -1 {
-	searchQuery.Consumed = "%%"
+	searchQuery.Consumed = ""
     } else {
-	fmt.Println(searchQuery.Consumed)
 	searchQuery.Consumed = strconv.Itoa(searchRating.Consumed)
     }
 
-    return searchQuery
+    return
 }
 
 func GetRatings(c *gin.Context) {
@@ -61,8 +59,7 @@ func GetRatingsByUserID(c *gin.Context) {
 func SearchRatingsByUserID(c *gin.Context) {
     var searchRating models.SearchRating
     var ratings []models.Rating
-    var searchQuery models.SearchQuery 
-    searchQuery = createSearchQuery(searchRating)
+    var searchQuery models.SearchQuery = createSearchQuery(searchRating)
     
     id := helpers.GetUserId(c)
     searchQuery.User_id = id
@@ -73,14 +70,8 @@ func SearchRatingsByUserID(c *gin.Context) {
 	return
     }
 
-    if result := database.Db.Where(
-	    "name LIKE ? AND entry_type LIKE ? AND rating LIKE ? AND consumed LIKE ? AND user_id = ?",
-	    searchQuery.Name,
-	    searchQuery.Entry_type,
-	    searchQuery.Rating,
-	    searchQuery.Consumed,
-	    searchQuery.User_id,
-	).Find(&ratings); result.Error != nil {
+    
+    if result := database.Db.Where(&searchQuery, "name LIKE", "entry_type LIKE").Find(&ratings); result.Error != nil {
 	err := errors.NewInternalServerError("invalid json body")
 	c.JSON(err.Status, err)
 	return

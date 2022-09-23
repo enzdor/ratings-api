@@ -1,4 +1,4 @@
-package loggedornot
+package middlewares
 
 import (
     "strconv"
@@ -11,19 +11,19 @@ import (
 
 func AuthMiddleware() gin.HandlerFunc {
     return func (c *gin.Context) {
-	cookie := c.GetHeader("jwt-token")
+	header := c.GetHeader("jwt-token")
 
-	if cookie == "" {
-	    err := errors.NewBadRequestError("invalid token string")
+	if header == "" {
+	    err := errors.NewBadRequestError("invalid token string here")
 	    c.AbortWithStatusJSON(err.Status, err)
 	    return
 	}
 
-	token, err := jwt.ParseWithClaims(cookie, &jwt.StandardClaims{}, func(*jwt.Token) (interface{}, error) {
+	token, err := jwt.ParseWithClaims(header, &jwt.StandardClaims{}, func(*jwt.Token) (interface{}, error) {
 	    return []byte(database.SecretKey), nil
 	})
 	if err != nil {
-	    err := errors.NewInternalServerError("error parsing cookie")
+	    err := errors.NewInternalServerError("error parsing header")
 	    c.AbortWithStatusJSON(err.Status, err)
 	    return
 	}

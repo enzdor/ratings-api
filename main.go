@@ -3,6 +3,7 @@ package main
 import (
     "gorm.io/driver/mysql"
     "gorm.io/gorm"
+    "gorm.io/gorm/logger"
     "github.com/gin-gonic/gin"
     "github.com/gin-contrib/cors"
     "github.com/joho/godotenv"
@@ -26,11 +27,12 @@ func main() {
 
     // Get a database handle.
     var err error
-    database.Db, err = gorm.Open(mysql.Open(cfg), &gorm.Config{})
+    database.Db, err = gorm.Open(mysql.Open(cfg), &gorm.Config{
+	Logger: logger.Default.LogMode(logger.Info),
+    })
     if err != nil {
         log.Fatal(err)
     }
-
 
     router := gin.Default()
     routers.RatingsRouter(router)
