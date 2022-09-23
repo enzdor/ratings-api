@@ -11,8 +11,16 @@ import (
     "github.com/enzdor/ratings-api/utils/helpers"
 )
 
-func createSearchQuery(searchRating models.SearchRating) models.SearchQuery{
-    var searchQuery models.SearchQuery
+type typeQuery struct {
+	Rating_id	int `json:"rating_id" gorm:"primaryKey;unique;notNull"`
+	Name		string `json:"name" gorm:"notNull;size:255"`
+	Entry_type	string `json:"entry_type" gorm:"notNull;size:255"`
+	Rating		string `json:"rating" gorm:"notNull"`
+	Consumed	string `json:"consumed" gorm:"notNull"`
+	User_id		int `json:"user_id" gorm:"notNull;foreignKey:user_id;references:user_id;constraint:OnUpdate,OnDelete"`
+}
+
+func (searchQuery *typeQuery) createSearchQuery(searchRating *models.SearchRating) {
     searchQuery.Name = fmt.Sprintf("%s%s%s", "%", searchRating.Name, "%")
     searchQuery.Entry_type = fmt.Sprintf("%s%s%s", "%", searchRating.Entry_type, "%")
     searchQuery.User_id = searchRating.User_id
@@ -29,8 +37,6 @@ func createSearchQuery(searchRating models.SearchRating) models.SearchQuery{
 	fmt.Println(searchQuery.Consumed)
 	searchQuery.Consumed = strconv.Itoa(searchRating.Consumed)
     }
-
-    return searchQuery
 }
 
 func GetRatings(c *gin.Context) {
@@ -61,17 +67,17 @@ func GetRatingsByUserID(c *gin.Context) {
 func SearchRatingsByUserID(c *gin.Context) {
     var searchRating models.SearchRating
     var ratings []models.Rating
-    var searchQuery models.SearchQuery 
-    searchQuery = createSearchQuery(searchRating)
-    
-    id := helpers.GetUserId(c)
-    searchQuery.User_id = id
+    var searchQuery typeQuery 
 
     if err := c.ShouldBindJSON(&searchRating); err != nil {
 	err := errors.NewInternalServerError("invalid json body")
 	c.JSON(err.Status, err)
 	return
     }
+
+    searchQuery.createSearchQuery(&searchRating)
+    id := helpers.GetUserId(c)
+    searchQuery.User_id = id
 
     if result := database.Db.Where(
 	    "name LIKE ? AND entry_type LIKE ? AND rating LIKE ? AND consumed LIKE ? AND user_id = ?",
@@ -85,8 +91,6 @@ func SearchRatingsByUserID(c *gin.Context) {
 	c.JSON(err.Status, err)
 	return
     }
-
-
 
     c.IndentedJSON(http.StatusOK, ratings)
 }
