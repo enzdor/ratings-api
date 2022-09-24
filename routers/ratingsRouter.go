@@ -16,6 +16,6 @@ func RatingsRouter(r *gin.Engine) {
     ratings.GET("/user", controllers.GetRatingsByUserID)
     ratings.POST("/", controllers.PostRating)
     ratings.POST("/search", controllers.SearchRatingsByUserID)
-    ratings.PATCH("/", controllers.UpdateRating)
-    ratings.DELETE("/", controllers.DeleteRating)
+    ratings.PATCH("/:rating_id", controllers.UpdateRating)
+    ratings.DELETE("/:rating_id", controllers.DeleteRating)
 }

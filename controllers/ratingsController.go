@@ -97,10 +97,17 @@ func SearchRatingsByUserID(c *gin.Context) {
 
 func GetRatingByID(c *gin.Context) {
     var rating models.Rating
+    issuer := helpers.GetUserId(c)
     id := c.Param("rating_id")
 
     if result := database.Db.First(&rating, id); result.Error != nil {
 	err := errors.NewInternalServerError("rating not found in db")
+	c.JSON(err.Status, err)
+	return
+    }
+
+    if rating.User_id != issuer {
+	err := errors.NewBadRequestError("rating does not belong to user")
 	c.JSON(err.Status, err)
 	return
     }
@@ -133,9 +140,16 @@ func PostRating(c *gin.Context) {
 func UpdateRating(c *gin.Context) {
     var rating  models.Rating 
     id := c.Param("rating_id")
+    issuer := helpers.GetUserId(c)
 
     if result := database.Db.First(&rating, id); result.Error != nil {
 	err := errors.NewInternalServerError("rating not found in db")
+	c.JSON(err.Status, err)
+	return
+    }
+
+    if rating.User_id != issuer {
+	err := errors.NewBadRequestError("rating does not belong to user")
 	c.JSON(err.Status, err)
 	return
     }
@@ -145,6 +159,8 @@ func UpdateRating(c *gin.Context) {
 	c.JSON(err.Status, err)
 	return
     }
+
+    rating.User_id = int(issuer)
 
     if result := database.Db.Save(&rating); result.Error != nil {
 	err := errors.NewInternalServerError("could not update rating in db")
