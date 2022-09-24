@@ -174,6 +174,19 @@ func UpdateRating(c *gin.Context) {
 func DeleteRating(c *gin.Context) {
     var rating  models.Rating
     id := c.Param("rating_id")
+    issuer := helpers.GetUserId(c)
+
+    if result := database.Db.First(&rating, id); result.Error != nil {
+	err := errors.NewInternalServerError("rating not found in db")
+	c.JSON(err.Status, err)
+	return
+    }
+
+    if rating.User_id != issuer {
+	err := errors.NewBadRequestError("rating does not belong to user")
+	c.JSON(err.Status, err)
+	return
+    }
 
     if result := database.Db.Delete(&rating, id); result.Error != nil {
 	err := errors.NewInternalServerError("could not delete rating in db")
