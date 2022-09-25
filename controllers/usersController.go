@@ -13,19 +13,6 @@ import (
 )
 
 
-func GetUserByID(c *gin.Context) {
-    var user models.User
-    id := c.Param("user_id")
-
-    if result := database.Db.First(&user, id); result.Error != nil {
-	err := errors.NewBadRequestError("not found in db")
-	c.JSON(err.Status, err)
-	return
-    }
-
-    c.JSON(http.StatusOK, user)
-}
-
 func PostUser(c *gin.Context) {
     var user, checkUser models.User
 
@@ -110,7 +97,7 @@ func LoginUser(c *gin.Context) {
     }
 
     claims := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.StandardClaims{
-	ExpiresAt: time.Now().Add(time.Hour * 72).Unix(),
+	ExpiresAt: time.Now().Add(time.Hour * 2).Unix(),
 	Issuer: strconv.Itoa(dbUser.User_id),
     })
 

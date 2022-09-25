@@ -2,8 +2,6 @@ package controllers
 
 import (
     "net/http"
-    "fmt"
-    "strconv"
     "github.com/gin-gonic/gin"
     "github.com/enzdor/ratings-api/utils/models"
     "github.com/enzdor/ratings-api/utils/database"
@@ -11,45 +9,6 @@ import (
     "github.com/enzdor/ratings-api/utils/helpers"
 )
 
-type typeQuery struct {
-	Rating_id	int `json:"rating_id" gorm:"primaryKey;unique;notNull"`
-	Name		string `json:"name" gorm:"notNull;size:255"`
-	Entry_type	string `json:"entry_type" gorm:"notNull;size:255"`
-	Rating		string `json:"rating" gorm:"notNull"`
-	Consumed	string `json:"consumed" gorm:"notNull"`
-	User_id		int `json:"user_id" gorm:"notNull;foreignKey:user_id;references:user_id;constraint:OnUpdate,OnDelete"`
-}
-
-func (searchQuery *typeQuery) createSearchQuery(searchRating *models.SearchRating) {
-    searchQuery.Name = fmt.Sprintf("%s%s%s", "%", searchRating.Name, "%")
-    searchQuery.Entry_type = fmt.Sprintf("%s%s%s", "%", searchRating.Entry_type, "%")
-    searchQuery.User_id = searchRating.User_id
-
-    if searchRating.Rating == -1 {
-	searchQuery.Rating = "%%"
-    } else {
-	searchQuery.Rating = strconv.Itoa(searchRating.Rating)
-    }
-
-    if searchRating.Consumed == -1 {
-	searchQuery.Consumed = "%%"
-    } else {
-	fmt.Println(searchQuery.Consumed)
-	searchQuery.Consumed = strconv.Itoa(searchRating.Consumed)
-    }
-}
-
-func GetRatings(c *gin.Context) {
-    var ratings []models.Rating
-
-    if result := database.Db.Find(&ratings); result.Error != nil {
-	err := errors.NewInternalServerError("invalid json body")
-	c.JSON(err.Status, err)
-	return
-    }
-
-    c.IndentedJSON(http.StatusOK, ratings)
-}
 
 func GetRatingsByUserID(c *gin.Context) {
     var ratings []models.Rating
@@ -67,7 +26,7 @@ func GetRatingsByUserID(c *gin.Context) {
 func SearchRatingsByUserID(c *gin.Context) {
     var searchRating models.SearchRating
     var ratings []models.Rating
-    var searchQuery typeQuery 
+    var searchQuery helpers.TypeQuery 
 
     if err := c.ShouldBindJSON(&searchRating); err != nil {
 	err := errors.NewInternalServerError("invalid json body")
@@ -75,7 +34,7 @@ func SearchRatingsByUserID(c *gin.Context) {
 	return
     }
 
-    searchQuery.createSearchQuery(&searchRating)
+    searchQuery.CreateSearchQuery(&searchRating)
     id := helpers.GetUserId(c)
     searchQuery.User_id = id
 

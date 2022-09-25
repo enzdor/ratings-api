@@ -10,7 +10,6 @@ func UsersRouter(r *gin.Engine) {
 
     users.POST("/register", controllers.PostUser)
     users.POST("/login", controllers.LoginUser)
-    users.GET("/:user_id", controllers.GetUserByID)
     users.GET("/logout", controllers.LogoutUser)
     users.DELETE("/:user_id", controllers.DeleteUser)
 }

@@ -11,7 +11,6 @@ func RatingsRouter(r *gin.Engine) {
 
     ratings.Use(middlewares.AuthMiddleware())
 
-    ratings.GET("/", controllers.GetRatings)
     ratings.GET("/:rating_id", controllers.GetRatingByID)
     ratings.GET("/user", controllers.GetRatingsByUserID)
     ratings.POST("/", controllers.PostRating)

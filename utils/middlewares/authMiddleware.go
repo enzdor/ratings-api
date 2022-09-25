@@ -1,6 +1,7 @@
 package middlewares
 
 import (
+    "time"
     "strconv"
     "github.com/enzdor/ratings-api/utils/models"
     "github.com/enzdor/ratings-api/utils/errors"
@@ -28,10 +29,22 @@ func AuthMiddleware() gin.HandlerFunc {
 	    return
 	}
 
+	if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
+	    err := errors.NewBadRequestError("unexpected singing method")
+	    c.AbortWithStatusJSON(err.Status, err)
+	    return
+	}
+
 	claims := token.Claims.(*jwt.StandardClaims)
 	issuer, err := strconv.ParseInt(claims.Issuer, 10, 64)
 	if err != nil {
 	    err := errors.NewInternalServerError("user id should be number")
+	    c.AbortWithStatusJSON(err.Status, err)
+	    return
+	}
+
+	if claims.ExpiresAt < time.Now().Unix() {
+	    err := errors.NewBadRequestError("token expired")
 	    c.AbortWithStatusJSON(err.Status, err)
 	    return
 	}
