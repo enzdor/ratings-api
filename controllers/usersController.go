@@ -1,6 +1,7 @@
 package controllers
 
 import (
+    "fmt"
     "net/http"
     "github.com/gin-gonic/gin"
     "time"
@@ -97,7 +98,7 @@ func LoginUser(c *gin.Context) {
     }
 
     claims := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.StandardClaims{
-	ExpiresAt: time.Now().Add(time.Hour * 2).Unix(),
+	ExpiresAt: time.Now().Add(time.Hour).Unix(),
 	Issuer: strconv.Itoa(dbUser.User_id),
     })
 
@@ -111,7 +112,42 @@ func LoginUser(c *gin.Context) {
     c.JSON(http.StatusOK, token)
 }
 
-func LogoutUser(c *gin.Context) {
-    c.SetCookie("jwt-token", "", -1, "", "", true, true)
-    c.JSON(http.StatusOK, "logout succesful")
+func ExtendUser(c *gin.Context) {
+    header := c.GetHeader("jwt-token")
+
+    if header == "" {
+	err := errors.NewBadRequestError("invalid token string here")
+	c.AbortWithStatusJSON(err.Status, err)
+	return
+    }
+
+    token, err := jwt.ParseWithClaims(header, &jwt.StandardClaims{}, func(token *jwt.Token) (interface{}, error) {
+	if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
+	    err := errors.NewBadRequestError("unexpected singing method")
+	    c.AbortWithStatusJSON(err.Status, err)
+	    return nil, fmt.Errorf("Unexpected signing method: %v", token.Header["alg"])
+	}
+	return []byte(database.SecretKey), nil
+    })
+    if err != nil {
+	err := errors.NewInternalServerError("error parsing header")
+	c.AbortWithStatusJSON(err.Status, err)
+	return
+    }
+
+    claims := token.Claims.(*jwt.StandardClaims)
+
+    newClaims := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.StandardClaims{
+	ExpiresAt: time.Now().Add(time.Hour).Unix(),
+	Issuer: claims.Issuer,
+    })
+
+    newToken, err := newClaims.SignedString([]byte(database.SecretKey))
+    if err != nil {
+	err := errors.NewInternalServerError("unable to create token")
+	c.JSON(err.Status, err)
+	return
+    }
+
+    c.JSON(http.StatusOK, newToken)
 }

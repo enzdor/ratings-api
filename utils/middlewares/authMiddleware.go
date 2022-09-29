@@ -1,6 +1,7 @@
 package middlewares
 
 import (
+    "fmt"
     "time"
     "strconv"
     "github.com/enzdor/ratings-api/utils/models"
@@ -20,7 +21,12 @@ func AuthMiddleware() gin.HandlerFunc {
 	    return
 	}
 
-	token, err := jwt.ParseWithClaims(header, &jwt.StandardClaims{}, func(*jwt.Token) (interface{}, error) {
+	token, err := jwt.ParseWithClaims(header, &jwt.StandardClaims{}, func(token *jwt.Token) (interface{}, error) {
+	    if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
+		err := errors.NewBadRequestError("unexpected singing method")
+		c.AbortWithStatusJSON(err.Status, err)
+		return nil, fmt.Errorf("Unexpected signing method: %v", token.Header["alg"])
+	    }
 	    return []byte(database.SecretKey), nil
 	})
 	if err != nil {
@@ -29,11 +35,6 @@ func AuthMiddleware() gin.HandlerFunc {
 	    return
 	}
 
-	if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
-	    err := errors.NewBadRequestError("unexpected singing method")
-	    c.AbortWithStatusJSON(err.Status, err)
-	    return
-	}
 
 	claims := token.Claims.(*jwt.StandardClaims)
 	issuer, err := strconv.ParseInt(claims.Issuer, 10, 64)

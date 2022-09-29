@@ -6,4 +6,3 @@ The api for the ratings app written in go using the gin-gonic library to interfa
 
 - Change .env file 
 - Create tests
-- Update tokens when user interacts with api, extend life span or something
