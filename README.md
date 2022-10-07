@@ -6,3 +6,5 @@ The api for the ratings app written in go using the gin-gonic library to interfa
 
 - Change .env file 
 - Create tests
+- use docker to build app
+- re-write everything only using standard libraries

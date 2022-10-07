@@ -3,18 +3,17 @@ package controllers
 import (
     "fmt"
     "net/http"
-    "github.com/gin-gonic/gin"
     "time"
     "strconv"
     "github.com/golang-jwt/jwt"
+    "github.com/gin-gonic/gin"
     "github.com/enzdor/ratings-api/utils/models"
-    "github.com/enzdor/ratings-api/utils/database"
     "github.com/enzdor/ratings-api/utils/errors"
     "golang.org/x/crypto/bcrypt"
 )
 
 
-func PostUser(c *gin.Context) {
+func (r *Repository) PostUser(c *gin.Context) {
     var user, checkUser models.User
 
     if err:= c.ShouldBindJSON(&user); err != nil {
@@ -23,7 +22,7 @@ func PostUser(c *gin.Context) {
 	return
     }
 
-    if result := database.Db.Where("email = ?", user.Email).First(&checkUser); result.Error == nil {
+    if result := r.Db.Where("email = ?", user.Email).First(&checkUser); result.Error == nil {
 	err := errors.NewBadRequestError("user already exists")
 	c.JSON(err.Status, err)
 	return
@@ -37,7 +36,7 @@ func PostUser(c *gin.Context) {
     }
     user.Password = string(newPassword)
 
-    if result := database.Db.Create(&user); result.Error != nil {
+    if result := r.Db.Create(&user); result.Error != nil {
 	err := errors.NewInternalServerError("unable to create user in db")
 	c.JSON(err.Status, err)
 	return
@@ -48,7 +47,7 @@ func PostUser(c *gin.Context) {
 	Issuer: strconv.Itoa(user.User_id),
     })
 
-    token, err := claims.SignedString([]byte(database.SecretKey))
+    token, err := claims.SignedString([]byte(SecretKey))
     if err != nil {
 	err := errors.NewInternalServerError("unable to create token")
 	c.JSON(err.Status, err)
@@ -58,11 +57,11 @@ func PostUser(c *gin.Context) {
     c.JSON(http.StatusOK, token)
 }
 
-func DeleteUser(c *gin.Context) {
+func (r *Repository) DeleteUser(c *gin.Context) {
     var user  models.User
     id := c.Param("user_id")
 
-    if result := database.Db.Delete(&user, id); result.Error != nil {
+    if result := r.Db.Delete(&user, id); result.Error != nil {
 	err := errors.NewInternalServerError("unable to delete user")
 	c.JSON(err.Status, err)
 	return
@@ -71,7 +70,7 @@ func DeleteUser(c *gin.Context) {
     c.JSON(http.StatusOK, user) 
 }
 
-func LoginUser(c *gin.Context) {
+func (r *Repository) LoginUser(c *gin.Context) {
     var reqUser models.User
     var dbUser models.User
 
@@ -80,7 +79,7 @@ func LoginUser(c *gin.Context) {
 	c.JSON(err.Status, err)
 	return
     }
-    if result := database.Db.Where("email = ?", reqUser.Email).First(&dbUser); result.Error != nil {
+    if result := r.Db.Where("email = ?", reqUser.Email).First(&dbUser); result.Error != nil {
 	err := errors.NewInternalServerError("user not found in db")
 	c.JSON(err.Status, err)
 	return
@@ -102,7 +101,7 @@ func LoginUser(c *gin.Context) {
 	Issuer: strconv.Itoa(dbUser.User_id),
     })
 
-    token, err := claims.SignedString([]byte(database.SecretKey))
+    token, err := claims.SignedString([]byte(SecretKey))
     if err != nil {
 	err := errors.NewInternalServerError("unable to create token")
 	c.JSON(err.Status, err)
@@ -112,7 +111,7 @@ func LoginUser(c *gin.Context) {
     c.JSON(http.StatusOK, token)
 }
 
-func ExtendUser(c *gin.Context) {
+func (r *Repository) ExtendUser(c *gin.Context) {
     header := c.GetHeader("jwt-token")
 
     if header == "" {
@@ -127,7 +126,7 @@ func ExtendUser(c *gin.Context) {
 	    c.AbortWithStatusJSON(err.Status, err)
 	    return nil, fmt.Errorf("Unexpected signing method: %v", token.Header["alg"])
 	}
-	return []byte(database.SecretKey), nil
+	return []byte(SecretKey), nil
     })
     if err != nil {
 	err := errors.NewInternalServerError("error parsing header")
@@ -142,7 +141,7 @@ func ExtendUser(c *gin.Context) {
 	Issuer: claims.Issuer,
     })
 
-    newToken, err := newClaims.SignedString([]byte(database.SecretKey))
+    newToken, err := newClaims.SignedString([]byte(SecretKey))
     if err != nil {
 	err := errors.NewInternalServerError("unable to create token")
 	c.JSON(err.Status, err)

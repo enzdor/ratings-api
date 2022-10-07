@@ -1,15 +1,18 @@
 package middlewares
 
 import (
+    "os"
     "fmt"
     "time"
     "strconv"
     "github.com/enzdor/ratings-api/utils/models"
     "github.com/enzdor/ratings-api/utils/errors"
-    "github.com/enzdor/ratings-api/utils/database"
+    "github.com/enzdor/ratings-api/controllers"
     "github.com/gin-gonic/gin"
     "github.com/golang-jwt/jwt"
 )
+
+var secretKey string = os.Getenv("APISECRETKEY")
 
 func AuthMiddleware() gin.HandlerFunc {
     return func (c *gin.Context) {
@@ -27,7 +30,7 @@ func AuthMiddleware() gin.HandlerFunc {
 		c.AbortWithStatusJSON(err.Status, err)
 		return nil, fmt.Errorf("Unexpected signing method: %v", token.Header["alg"])
 	    }
-	    return []byte(database.SecretKey), nil
+	    return []byte(secretKey), nil
 	})
 	if err != nil {
 	    err := errors.NewInternalServerError("error parsing header")
@@ -52,7 +55,7 @@ func AuthMiddleware() gin.HandlerFunc {
 
 	var user models.User
 
-	if result := database.Db.First(&user, issuer); result.Error != nil {
+	if result := controllers.Repo.Db.First(&user, issuer); result.Error != nil {
 	    err := errors.NewBadRequestError("could not find user in db")
 	    c.AbortWithStatusJSON(err.Status, err)
 	    return

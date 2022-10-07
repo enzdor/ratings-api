@@ -2,13 +2,15 @@ package helpers
 
 import (
     "fmt"
+    "os"
     "strconv"
     "github.com/gin-gonic/gin"
     "github.com/enzdor/ratings-api/utils/errors"
     "github.com/enzdor/ratings-api/utils/models"
-    "github.com/enzdor/ratings-api/utils/database"
     "github.com/golang-jwt/jwt"
 )
+
+var secretKey string = os.Getenv("APISECRETKEY")
 
 func GetUserId(c *gin.Context) (issuer int){
     header := c.GetHeader("jwt-token")
@@ -19,7 +21,7 @@ func GetUserId(c *gin.Context) (issuer int){
     }
 
     token, err := jwt.ParseWithClaims(header, &jwt.StandardClaims{}, func(*jwt.Token) (interface{}, error) {
-	return []byte(database.SecretKey), nil
+	return []byte(secretKey), nil
     })
     if err != nil {
 	err := errors.NewInternalServerError("error parsing header")
