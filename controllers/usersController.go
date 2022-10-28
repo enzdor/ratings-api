@@ -3,11 +3,11 @@ package controllers
 import (
     "fmt"
     "net/http"
-    "time"
     "strconv"
     "github.com/golang-jwt/jwt"
     "github.com/gin-gonic/gin"
     "github.com/enzdor/ratings-api/utils/models"
+    "github.com/enzdor/ratings-api/utils/helpers"
     "github.com/enzdor/ratings-api/utils/errors"
     "golang.org/x/crypto/bcrypt"
 )
@@ -42,15 +42,9 @@ func (r *Repository) PostUser(c *gin.Context) {
 	return
     }
 
-    claims := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.StandardClaims{
-	ExpiresAt: time.Now().Add(time.Hour).Unix(),
-	Issuer: strconv.Itoa(user.User_id),
-    })
-
-    token, err := claims.SignedString([]byte(SecretKey))
-    if err != nil {
-	err := errors.NewInternalServerError("unable to create token")
-	c.JSON(err.Status, err)
+    token, tokenerr := helpers.CreateToken(user.User_id) 
+    if tokenerr != nil {
+	c.JSON(tokenerr.Status, tokenerr)
 	return
     }
 
@@ -96,14 +90,7 @@ func (r *Repository) LoginUser(c *gin.Context) {
 	return
     }
 
-    claims := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.StandardClaims{
-	ExpiresAt: time.Now().Add(time.Hour).Unix(),
-	Issuer: strconv.Itoa(dbUser.User_id),
-    })
-
-    token, err := claims.SignedString([]byte(SecretKey))
-    if err != nil {
-	err := errors.NewInternalServerError("unable to create token")
+    token, err := helpers.CreateToken(dbUser.User_id); if err != nil {
 	c.JSON(err.Status, err)
 	return
     }
@@ -136,15 +123,16 @@ func (r *Repository) ExtendUser(c *gin.Context) {
 
     claims := token.Claims.(*jwt.StandardClaims)
 
-    newClaims := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.StandardClaims{
-	ExpiresAt: time.Now().Add(time.Hour).Unix(),
-	Issuer: claims.Issuer,
-    })
-
-    newToken, err := newClaims.SignedString([]byte(SecretKey))
+    issuer, err := strconv.Atoi(claims.Issuer)
     if err != nil {
-	err := errors.NewInternalServerError("unable to create token")
+	err := errors.NewInternalServerError("unable to parse stirng")
 	c.JSON(err.Status, err)
+	return
+    }
+
+    newToken, tokenerr := helpers.CreateToken(issuer) 
+    if tokenerr != nil {
+	c.JSON(tokenerr.Status, tokenerr)
 	return
     }
 
